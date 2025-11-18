@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aprendendo com Lavine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            touch-action: none; /* Impede zoom e scroll no tablet */
+            overflow: hidden; /* Garante que nada crie barras de rolagem */
+            background: linear-gradient(180deg, #E0C3FC 0%, #8EC5FC 100%);
+            height: 100dvh; /* Altura dinâmica para mobile */
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        .letter-slot {
+            font-family: 'Fredoka One', cursive;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: inset 0 4px 6px rgba(0,0,0,0.1);
+            background-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .letter-bubble {
+            position: absolute;
+            font-family: 'Fredoka One', cursive;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            border: 3px solid white;
+            touch-action: manipulation; 
+            z-index: 20;
+            will-change: transform;
+            transition: transform 0.2s;
+        }
+
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Dica visual forte para ajudar a encontrar */
+        .hint-active {
+            animation: bounceHint 1s infinite !important;
+            box-shadow: 0 0 30px #fbbf24 !important; /* Brilho amarelo forte */
+            border-color: #fbbf24 !important;
+            z-index: 30 !important;
+        }
+
+        @keyframes bounceHint {
+            0%, 100% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.2) translateY(-15px); }
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translateX(-4px); }
+            20%, 80% { transform: translateX(4px); }
+            30%, 50%, 70% { transform: translateX(-8px); }
+            40%, 60% { transform: translateX(8px); }
+        }
+
+        .pop-in {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .highlight-slot {
+            border-color: #ec4899 !important;
+            background-color: #fce7f3 !important;
+            transform: scale(1.15);
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.6);
+            z-index: 10;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.4); transform: scale(1.15); }
+            50% { transform: scale(1.2); }
+            70% { box-shadow: 0 0 0 15px rgba(236, 72, 153, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); transform: scale(1.15); }
+        }
+        
+        .correct-hit {
+            transition: transform 0.3s ease-out, opacity 0.3s ease-in;
+            transform: scale(2.0) rotate(20deg) !important;
+            opacity: 0 !important;
+            background-color: #22c55e !important;
+        }
+
+        #loadingOverlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+        }
+
+        #play-area-container {
+            position: relative;
+            width: 100%;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center" onclick="globalTouchEffect(event)">
+
+    <!-- Tela Inicial -->
+    <div id="startScreen" class="absolute inset-0 z-50 bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center">
+        <div class="mb-6 animate-bounce text-8xl">👧🏻</div>
+        <h1 class="text-4xl md:text-6xl font-extrabold text-gray-800 mb-2 font-['Fredoka_One']">
+            Oi, <span class="text-pink-500">Lavine</span>!
+        </h1>
+        <p class="text-2xl text-gray-500 mb-10 font-bold">Vamos brincar?</p>
+        
+        <button onclick="startGame()" class="w-64 h-24 bg-gradient-to-b from-pink-400 to-pink-600 hover:from-pink-500 hover:to-pink-700 text-white text-4xl rounded-3xl shadow-[0_8px_0_rgb(190,24,93)] active:shadow-[0_0px_0_rgb(190,24,93)] active:translate-y-2 transition-all font-bold flex items-center justify-center gap-3">
+            <span>JOGAR</span> 🔊
+        </button>
+        <p class="mt-6 text-gray-400 text-base">Toque para ligar o som</p>
+    </div>
+
+    <!-- Área do Jogo -->
+    <div id="gameArea" class="w-full h-full flex flex-col hidden relative">
+        
+        <!-- Cabeçalho Fixo -->
+        <div class="flex-none pt-4 pb-2 px-2 flex flex-col items-center z-30 bg-white/40 backdrop-blur-md shadow-sm border-b border-white/20">
+            <div class="flex items-center gap-3 mb-3 bg-white px-5 py-2 rounded-full shadow-lg transform scale-100 transition-transform" id="header-target">
+                <span class="text-gray-400 font-bold text-sm md:text-base uppercase tracking-wide mr-1">Ache o:</span>
+                <span id="target-emoji-display" class="text-4xl md:text-5xl drop-shadow-sm">👧🏻</span>
+                <div class="w-0.5 h-10 bg-gray-200 mx-1"></div>
+                <span id="target-letter-display" class="text-5xl md:text-6xl font-['Fredoka_One'] text-pink-600 font-bold drop-shadow-sm">L</span>
+            </div>
+            
+            <div id="slots-container" class="flex gap-2 justify-center items-center flex-wrap px-1 min-h-[70px]">
+                <!-- Slots dinâmicos -->
+            </div>
+        </div>
+
+        <!-- Área de Brincar -->
+        <div id="play-area-container">
+            <div id="play-area" class="absolute inset-0 w-full h-full">
+                <!-- Fundo decorativo -->
+                <div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none z-0">
+                    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="w-full h-full fill-pink-400">
+                        <path d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,81.6,-46.6C91.4,-34.1,98.1,-19.2,95.8,-5.3C93.5,8.6,82.2,21.4,71.3,32.2C60.4,43,49.9,51.8,38.3,60.2C26.7,68.6,14,76.6,-0.4,77.3C-14.8,78,-31.2,71.4,-44.2,62C-57.2,52.6,-66.8,40.4,-73.6,26.9C-80.4,13.4,-84.4,-1.4,-80.4,-14.8C-76.4,-28.2,-64.4,-40.2,-51.8,-47.9C-39.2,-55.6,-26,-59,-12.8,-61.3C0.4,-63.6,13.6,-64.8,30.5,-83.6L44.7,-76.4Z" transform="translate(100 100)" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tela de Vitória -->
+        <div id="winScreen" class="hidden absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4">
+            <div class="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl max-w-md w-full mx-4 relative overflow-hidden border-4 border-pink-200">
+                <div class="absolute top-0 left-0 w-full h-4 bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400"></div>
+                <div id="winEmojiDisplay" class="text-7xl md:text-8xl mb-6 animate-bounce mt-4">🎉</div>
+                <p class="text-4xl md:text-5xl font-['Fredoka_One'] text-pink-500 mb-2">PARABÉNS!</p>
+                <p id="winMessage" class="text-2xl text-gray-600 font-bold mb-8">Você escreveu LAVINE!</p>
+                
+                <button onclick="getNewWords()" class="w-full py-5 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white text-2xl rounded-2xl shadow-lg active:scale-95 font-bold flex items-center justify-center gap-3 transition-all border-b-4 border-indigo-800 mb-4">
+                    ✨ Próxima Palavra
+                </button>
+                
+                <button onclick="resetGame(true)" class="w-full py-3 bg-gray-100 text-gray-500 text-lg rounded-xl active:scale-95 font-bold transition-all hover:bg-gray-200">
+                    Jogar "LAVINE" de Novo
+                </button>
+            </div>
+        </div>
+
+        <!-- Tela de Loading -->
+        <div id="loadingOverlay" class="hidden absolute inset-0 flex-col items-center justify-center text-white text-xl md:text-2xl font-bold">
+            <div class="animate-spin rounded-full h-20 w-20 border-8 border-white border-t-transparent mb-6"></div>
+            <p id="loadingText" class="font-['Fredoka_One'] text-3xl drop-shadow-md">Buscando...</p>
+        </div>
+    </div>
+
+    <script>
+        const defaultName = ['L', 'A', 'V', 'I', 'N', 'E'];
+        let targetName = [...defaultName];
+        let currentEmoji = '👧🏻'; 
+
+        // Cores vibrantes e atraentes
+        const colors = [
+            'bg-pink-500 border-pink-300', 
+            'bg-purple-500 border-purple-300', 
+            'bg-blue-500 border-blue-300', 
+            'bg-orange-500 border-orange-300', 
+            'bg-green-500 border-green-300', 
+            'bg-red-500 border-red-300'
+        ];
+        
+        let currentStep = 0;
+        let synth = window.speechSynthesis;
+        let audioCtx;
+        let idleHintTimer; // Timer para dica automática
+
+        // --- EFEITOS VISUAIS DE TOQUE (Rastro Mágico) ---
+        function globalTouchEffect(e) {
+            // Cria partículas onde a criança toca, independente de ser um botão ou não
+            const x = e.clientX || (e.touches && e.touches[0].clientX);
+            const y = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            if (x && y) {
+                confetti({
+                    particleCount: 8,
+                    spread: 30,
+                    startVelocity: 15,
+                    origin: { x: x / window.innerWidth, y: y / window.innerHeight },
+                    colors: ['#FFD700', '#FF69B4', '#00CED1'], // Ouro, Rosa, Turquesa
+                    disableForReducedMotion: true,
+                    gravity: 0.5,
+                    ticks: 50
+                });
+            }
+            
+            // Reseta o timer da dica toda vez que ela toca na tela
+            resetIdleHintTimer();
+        }
+
+        // --- SISTEMA DE ÁUDIO ---
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(e => console.log("Audio resume failed:", e));
+            }
+        }
+
+        function speak(text, priority = false) {
+            if (priority) synth.cancel(); // Interrompe se for prioritário
+            
+            const utterThis = new SpeechSynthesisUtterance(text);
+            utterThis.lang = 'pt-BR';
+            utterThis.rate = 1.0; // Velocidade normal para clareza
+            utterThis.pitch = 1.2; // Voz mais "alegre"
+
+            const voices = synth.getVoices();
+            const ptVoice = voices.find(v => v.lang.includes('pt-BR')) || voices.find(v => v.lang.includes('pt'));
+            if (ptVoice) utterThis.voice = ptVoice;
+
+            synth.speak(utterThis);
+        }
+
+        function playSound(type) {
+            if (!audioCtx) initAudio();
+            
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            if (type === 'success') {
+                // Som mágico de harpa/sinos (simulado)
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1318.51, audioCtx.currentTime + 0.3); // Do -> Mi (agudo)
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.6);
+            } else if (type === 'pop') {
+                // Som curto de "pop"
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else {
+                // Som suave de "tente de novo" (não agressivo)
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(150, audioCtx.currentTime + 0.3);
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        // --- LÓGICA DE POSICIONAMENTO ---
+        function getBubbleSize() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const minDim = Math.min(w, h);
+            // Bolhas maiores para dedos pequenos
+            if (minDim < 400) return 75; 
+            if (minDim < 600) return 90; 
+            if (minDim < 900) return 100; 
+            return 110; 
+        }
+
+        function findSafePosition(placedRects, containerRect, elSize) {
+            const padding = 20; 
+            const elementPadding = 15; 
+            
+            const maxX = containerRect.width - elSize - padding;
+            const maxY = containerRect.height - elSize - padding;
+
+            if (maxX <= 0 || maxY <= 0) return null;
+
+            let newRect;
+            let isOverlapping = true;
+            let attempts = 0;
+            const maxAttempts = 150;
+
+            while (isOverlapping && attempts < maxAttempts) {
+                attempts++;
+                const x = Math.floor(Math.random() * (maxX - padding)) + padding;
+                const y = Math.floor(Math.random() * (maxY - padding)) + padding;
+                
+                newRect = { x, y, width: elSize, height: elSize };
+                
+                isOverlapping = false;
+                for (const rect of placedRects) {
+                    if (isOverlappingRects(newRect, rect, elementPadding)) { 
+                        isOverlapping = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (attempts >= maxAttempts) { 
+                const cols = Math.floor(containerRect.width / (elSize + 5));
+                const index = placedRects.length;
+                const row = Math.floor(index / cols);
+                const col = index % cols;
+                newRect = {
+                    x: padding + (col * (elSize + 5)),
+                    y: padding + (row * (elSize + 5)),
+                    width: elSize,
+                    height: elSize
+                };
+            }
+            return newRect;
+        }
+
+        function isOverlappingRects(rect1, rect2, padding) {
+            return (
+                rect1.x < rect2.x + rect2.width + padding &&
+                rect1.x + rect1.width + padding > rect2.x &&
+                rect1.y < rect2.y + rect2.height + padding &&
+                rect1.y + rect1.height + padding > rect2.y
+            );
+        }
+
+        function spawnBubbles() {
+            const playArea = document.getElementById('play-area');
+            playArea.innerHTML = ''; 
+            
+            // Recoloca SVG
+            playArea.innerHTML = `<div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none z-0">
+                    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="w-full h-full fill-pink-400">
+                        <path d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,81.6,-46.6C91.4,-34.1,98.1,-19.2,95.8,-5.3C93.5,8.6,82.2,21.4,71.3,32.2C60.4,43,49.9,51.8,38.3,60.2C26.7,68.6,14,76.6,-0.4,77.3C-14.8,78,-31.2,71.4,-44.2,62C-57.2,52.6,-66.8,40.4,-73.6,26.9C-80.4,13.4,-84.4,-1.4,-80.4,-14.8C-76.4,-28.2,-64.4,-40.2,-51.8,-47.9C-39.2,-55.6,-26,-59,-12.8,-61.3C0.4,-63.6,13.6,-64.8,30.5,-83.6L44.7,-76.4Z" transform="translate(100 100)" />
+                    </svg>
+                </div>`;
+
+            const containerRect = playArea.getBoundingClientRect();
+            const elSize = getBubbleSize();
+            const placedRects = [];
+
+            let lettersData = targetName.map((char, i) => ({ 
+                char, 
+                color: colors[i % colors.length]
+            }));
+            lettersData.sort(() => Math.random() - 0.5);
+
+            lettersData.forEach((item) => {
+                const newRect = findSafePosition(placedRects, containerRect, elSize);
+                
+                if (newRect) {
+                    placedRects.push(newRect);
+
+                    const bubble = document.createElement('div');
+                    bubble.textContent = item.char;
+                    bubble.dataset.char = item.char; // Identificador para a dica
+                    bubble.className = `letter-bubble floating ${item.color}`;
+                    
+                    bubble.style.width = `${elSize}px`;
+                    bubble.style.height = `${elSize}px`;
+                    bubble.style.fontSize = `${elSize * 0.55}px`;
+                    bubble.style.left = `${newRect.x}px`;
+                    bubble.style.top = `${newRect.y}px`;
+                    bubble.style.animationDelay = `-${Math.random() * 3}s`;
+
+                    const handleInteraction = (e) => {
+                        e.preventDefault(); 
+                        e.stopPropagation(); // Impede o efeito global de toque duplicar
+                        globalTouchEffect(e); // Dispara efeito no toque da bolha também
+                        handleInput(item.char, bubble, item.color);
+                    };
+
+                    bubble.addEventListener('touchstart', handleInteraction, { passive: false });
+                    bubble.addEventListener('mousedown', handleInteraction);
+                    
+                    playArea.appendChild(bubble);
+                }
+            });
+            
+            resetIdleHintTimer(); // Começa a contar tempo para dica
+        }
+
+        // --- DICA AUTOMÁTICA ---
+        function resetIdleHintTimer() {
+            clearTimeout(idleHintTimer);
+            // Remove dica de todos
+            document.querySelectorAll('.letter-bubble').forEach(b => b.classList.remove('hint-active'));
+            
+            // Se ainda tem jogo
+            if (!document.getElementById('gameArea').classList.contains('hidden')) {
+                idleHintTimer = setTimeout(showVisualHint, 6000); // 6 segundos sem fazer nada
+            }
+        }
+
+        function showVisualHint() {
+            const currentLetter = targetName[currentStep];
+            // Encontra UMA bolha que tenha a letra certa
+            const correctBubble = Array.from(document.querySelectorAll('.letter-bubble'))
+                .find(b => b.textContent === currentLetter);
+            
+            if (correctBubble) {
+                correctBubble.classList.add('hint-active');
+                speak("Onde está o " + currentLetter + "?", true); // Lembra a criança
+            }
+        }
+
+        // --- CORE DO JOGO ---
+        function startGame() {
+            initAudio();
+            speak(""); // Aquece voz
+
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameArea').classList.remove('hidden');
+            
+            setTimeout(() => {
+                resetGame(true);
+                setTimeout(() => speak("Vamos procurar a letra " + targetName[0] + "?"), 500);
+            }, 100);
+        }
+
+        function resetGame(useDefaultName = false) {
+            if (useDefaultName) {
+                targetName = [...defaultName];
+                currentEmoji = '👧🏻';
+            }
+            
+            currentStep = 0;
+            document.getElementById('winScreen').classList.add('hidden');
+            
+            const slotsContainer = document.getElementById('slots-container');
+            slotsContainer.innerHTML = '';
+            
+            const w = window.innerWidth;
+            // Slots maiores para melhor visualização
+            const slotSizeClass = w < 600 ? 'w-12 h-14 text-3xl' : 'w-16 h-20 text-5xl';
+
+            targetName.forEach((char, index) => {
+                const slot = document.createElement('div');
+                slot.id = `slot-${index}`;
+                slot.className = `letter-slot ${slotSizeClass} border-4 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-gray-300 font-bold`;
+                slot.textContent = ""; 
+                slotsContainer.appendChild(slot);
+            });
+
+            spawnBubbles();
+            updateHUD();
+        }
+
+        function updateHUD() {
+            document.querySelectorAll('.letter-slot').forEach((el, idx) => {
+                el.classList.remove('highlight-slot', 'border-pink-500', 'border-solid');
+                el.classList.add('border-dashed');
+                
+                if (idx === currentStep) {
+                    el.classList.add('highlight-slot', 'border-pink-500');
+                    el.classList.remove('border-dashed');
+                    el.classList.add('border-solid');
+                }
+            });
+
+            document.getElementById('target-emoji-display').textContent = currentEmoji;
+            if (currentStep < targetName.length) {
+                const letter = targetName[currentStep];
+                const letterDisplay = document.getElementById('target-letter-display');
+                letterDisplay.innerText = letter;
+                
+                // Animação na letra alvo no topo
+                letterDisplay.classList.remove('pop-in');
+                void letterDisplay.offsetWidth;
+                letterDisplay.classList.add('pop-in');
+            }
+        }
+
+        function handleInput(char, element, colorClass) {
+            const expectedChar = targetName[currentStep];
+
+            if (char === expectedChar) {
+                // ACERTOU
+                speak("Isso! É o " + char);
+                playSound('success');
+
+                element.classList.remove('floating', 'hint-active');
+                element.classList.add('correct-hit');
+
+                // Preenche slot
+                const slot = document.getElementById(`slot-${currentStep}`);
+                slot.textContent = char;
+                slot.className = slot.className.replace('text-gray-300', 'text-white');
+                
+                // Remove classes antigas de cor para garantir
+                slot.className = slot.className.replace(/bg-\w+-\d+/g, '').replace(/border-\w+-\d+/g, '');
+                
+                slot.classList.add(colorClass.split(' ')[0], 'border-white', 'pop-in', 'shadow-lg'); // Pega só a cor de fundo
+                slot.classList.remove('border-dashed', 'bg-white/60');
+
+                // Explosão de confete na letra certa
+                const rect = slot.getBoundingClientRect();
+                confetti({
+                    particleCount: 40,
+                    spread: 60,
+                    origin: { 
+                        x: (rect.left + rect.width/2) / window.innerWidth, 
+                        y: (rect.top + rect.height/2) / window.innerHeight
+                    },
+                    colors: ['#ffffff', '#fdf2f8', '#fbbf24'],
+                    disableForReducedMotion: true
+                });
+
+                setTimeout(() => {
+                    if(element.parentNode) element.parentNode.removeChild(element);
+                }, 300);
+
+                currentStep++;
+
+                if (currentStep === targetName.length) {
+                    clearTimeout(idleHintTimer);
+                    setTimeout(winGame, 800);
+                } else {
+                    updateHUD();
+                    resetIdleHintTimer();
+                }
+
+            } else {
+                // ERROU (Mas educativo!)
+                if (navigator.vibrate) navigator.vibrate(50);
+                
+                // Em vez de só som de erro, ensina qual é a letra que ela tocou
+                speak(`Essa é o ${char}!`); 
+                playSound('pop'); // Som divertido, não de erro
+
+                element.classList.remove('shake');
+                void element.offsetWidth; 
+                element.classList.add('shake');
+                
+                resetIdleHintTimer(); // Reseta timer para não dar dica imediatamente após erro
+            }
+        }
+
+        function winGame() {
+            const word = targetName.join('');
+            speak(`Parabéns! Você escreveu ${word}! Muito bem!`);
+            playSound('success');
+            
+            document.getElementById('winEmojiDisplay').textContent = currentEmoji;
+            document.getElementById('winMessage').textContent = `Você escreveu ${word}!`;
+            document.getElementById('winScreen').classList.remove('hidden');
+            
+            const duration = 3000;
+            const end = Date.now() + duration;
+            (function frame() {
+                confetti({
+                    particleCount: 5, angle: 60, spread: 55, origin: { x: 0 },
+                    colors: ['#ec4899', '#a855f7', '#fbbf24']
+                });
+                confetti({
+                    particleCount: 5, angle: 120, spread: 55, origin: { x: 1 },
+                    colors: ['#ec4899', '#a855f7', '#fbbf24']
+                });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+
+        // --- LISTA DE PALAVRAS SIMPLIFICADA (3-4 Letras) ---
+        const wordList = [
+            // Muito Fáceis (3 letras)
+            { palavra: "SOL", emoji: "☀️" },
+            { palavra: "LUA", emoji: "🌙" },
+            { palavra: "PAI", emoji: "👨‍👧" },
+            { palavra: "MAE", emoji: "👩‍👧" },
+            { palavra: "UVA", emoji: "🍇" },
+            { palavra: "OVO", emoji: "🥚" },
+            { palavra: "CEU", emoji: "☁️" },
+            { palavra: "RIO", emoji: "💧" },
+            { palavra: "GOL", emoji: "⚽" },
+            { palavra: "FLO", emoji: "🌸" }, // Adaptação para 3 letras se necessário, ou FLOR
+            
+            // Fáceis (4 letras)
+            { palavra: "FLOR", emoji: "🌸" },
+            { palavra: "GATO", emoji: "🐈" },
+            { palavra: "BOLA", emoji: "⚽" },
+            { palavra: "PATO", emoji: "🦆" },
+            { palavra: "SAPO", emoji: "🐸" },
+            { palavra: "CASA", emoji: "🏡" },
+            { palavra: "BEBE", emoji: "👶" },
+            { palavra: "DADO", emoji: "🎲" },
+            { palavra: "BOLO", emoji: "🍰" },
+            { palavra: "LEAO", emoji: "🦁" }
+        ];
+
+        let lastWordIndex = -1;
+
+        async function getNewWords() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            document.getElementById('loadingOverlay').classList.add('flex');
+
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            let newIndex = -1;
+            do {
+                newIndex = Math.floor(Math.random() * wordList.length);
+            } while (wordList.length > 1 && newIndex === lastWordIndex); 
+            
+            lastWordIndex = newIndex;
+            const randomItem = wordList[newIndex];
+            
+            targetName = randomItem.palavra.toUpperCase().split('');
+            currentEmoji = randomItem.emoji;
+            
+            resetGame(false); 
+            document.getElementById('loadingOverlay').classList.add('hidden');
+            document.getElementById('loadingOverlay').classList.remove('flex');
+            
+            speak(`Agora vamos achar: ${randomItem.palavra}`);
+        }
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (!document.getElementById('gameArea').classList.contains('hidden') && 
+                    document.getElementById('winScreen').classList.contains('hidden')) {
+                     spawnBubbles(); 
+                }
+            }, 200);
+        });
+    </script>
+</body>
+</html>
