@@ -44,8 +44,8 @@
             border: 3px solid white;
             touch-action: manipulation; 
             z-index: 20;
-            will-change: transform;
-            transition: transform 0.2s;
+            will-change: transform, opacity; /* Otimização para animação */
+            transition: transform 0.2s, opacity 0.2s;
         }
 
         .floating {
@@ -108,6 +108,7 @@
         }
         
         .correct-hit {
+            /* Animação de explosão (já usada) */
             transition: transform 0.3s ease-out, opacity 0.3s ease-in;
             transform: scale(2.0) rotate(20deg) !important;
             opacity: 0 !important;
@@ -125,6 +126,10 @@
             width: 100%;
             flex-grow: 1;
             overflow: hidden;
+        }
+
+        #feedbackOverlay {
+            transition: background-color 0.4s ease;
         }
     </style>
 </head>
@@ -173,6 +178,11 @@
             </div>
         </div>
 
+        <!-- NOVO: Overlay de Feedback Centralizado (Foco Seletivo) -->
+        <div id="feedbackOverlay" class="hidden absolute inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm pointer-events-none">
+            <div id="feedbackLetter" class="text-white text-9xl md:text-[14rem] font-['Fredoka_One'] drop-shadow-lg scale-0 transition-transform duration-300"></div>
+        </div>
+
         <!-- Tela de Vitória -->
         <div id="winScreen" class="hidden absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4">
             <div class="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl max-w-md w-full mx-4 relative overflow-hidden border-4 border-pink-200">
@@ -217,20 +227,21 @@
         let synth = window.speechSynthesis;
         let audioCtx;
         let idleHintTimer; // Timer para dica automática
+        let isProcessingInput = false; // Flag para Foco Seletivo
 
         // --- EFEITOS VISUAIS DE TOQUE (Rastro Mágico) ---
         function globalTouchEffect(e) {
-            // Cria partículas onde a criança toca, independente de ser um botão ou não
+            // Cria partículas onde a criança toca
             const x = e.clientX || (e.touches && e.touches[0].clientX);
             const y = e.clientY || (e.touches && e.touches[0].clientY);
             
-            if (x && y) {
+            if (x && y && !isProcessingInput) {
                 confetti({
                     particleCount: 8,
                     spread: 30,
                     startVelocity: 15,
                     origin: { x: x / window.innerWidth, y: y / window.innerHeight },
-                    colors: ['#FFD700', '#FF69B4', '#00CED1'], // Ouro, Rosa, Turquesa
+                    colors: ['#FFD700', '#FF69B4', '#00CED1'],
                     disableForReducedMotion: true,
                     gravity: 0.5,
                     ticks: 50
@@ -252,12 +263,12 @@
         }
 
         function speak(text, priority = false) {
-            if (priority) synth.cancel(); // Interrompe se for prioritário
+            if (priority) synth.cancel();
             
             const utterThis = new SpeechSynthesisUtterance(text);
             utterThis.lang = 'pt-BR';
-            utterThis.rate = 1.0; // Velocidade normal para clareza
-            utterThis.pitch = 1.2; // Voz mais "alegre"
+            utterThis.rate = 1.0;
+            utterThis.pitch = 1.2;
 
             const voices = synth.getVoices();
             const ptVoice = voices.find(v => v.lang.includes('pt-BR')) || voices.find(v => v.lang.includes('pt'));
@@ -275,16 +286,15 @@
             gainNode.connect(audioCtx.destination);
             
             if (type === 'success') {
-                // Som mágico de harpa/sinos (simulado)
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(1318.51, audioCtx.currentTime + 0.3); // Do -> Mi (agudo)
+                osc.frequency.exponentialRampToValueAtTime(1318.51, audioCtx.currentTime + 0.3);
                 gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
                 gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
                 osc.start();
                 osc.stop(audioCtx.currentTime + 0.6);
             } else if (type === 'pop') {
-                // Som curto de "pop"
+                // Som de "pop" (usado para erros educativos)
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(400, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.1);
@@ -293,7 +303,7 @@
                 osc.start();
                 osc.stop(audioCtx.currentTime + 0.1);
             } else {
-                // Som suave de "tente de novo" (não agressivo)
+                // Som suave de "tente de novo"
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(200, audioCtx.currentTime);
                 osc.frequency.linearRampToValueAtTime(150, audioCtx.currentTime + 0.3);
@@ -309,13 +319,21 @@
             const w = window.innerWidth;
             const h = window.innerHeight;
             const minDim = Math.min(w, h);
-            // Bolhas maiores para dedos pequenos
             if (minDim < 400) return 75; 
             if (minDim < 600) return 90; 
             if (minDim < 900) return 100; 
             return 110; 
         }
 
+        function isOverlappingRects(rect1, rect2, padding) {
+            return (
+                rect1.x < rect2.x + rect2.width + padding &&
+                rect1.x + rect1.width + padding > rect2.x &&
+                rect1.y < rect2.y + rect2.height + padding &&
+                rect1.y + rect1.height + padding > rect2.y
+            );
+        }
+        
         function findSafePosition(placedRects, containerRect, elSize) {
             const padding = 20; 
             const elementPadding = 15; 
@@ -346,6 +364,7 @@
                 }
             }
             
+            // Fallback de grid
             if (attempts >= maxAttempts) { 
                 const cols = Math.floor(containerRect.width / (elSize + 5));
                 const index = placedRects.length;
@@ -361,25 +380,20 @@
             return newRect;
         }
 
-        function isOverlappingRects(rect1, rect2, padding) {
-            return (
-                rect1.x < rect2.x + rect2.width + padding &&
-                rect1.x + rect1.width + padding > rect2.x &&
-                rect1.y < rect2.y + rect2.height + padding &&
-                rect1.y + rect1.height + padding > rect2.y
-            );
-        }
-
         function spawnBubbles() {
             const playArea = document.getElementById('play-area');
-            playArea.innerHTML = ''; 
-            
+            // Remove bolhas existentes
+            const existingBubbles = playArea.querySelectorAll('.letter-bubble');
+            existingBubbles.forEach(b => b.remove());
+
             // Recoloca SVG
-            playArea.innerHTML = `<div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none z-0">
-                    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="w-full h-full fill-pink-400">
-                        <path d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,81.6,-46.6C91.4,-34.1,98.1,-19.2,95.8,-5.3C93.5,8.6,82.2,21.4,71.3,32.2C60.4,43,49.9,51.8,38.3,60.2C26.7,68.6,14,76.6,-0.4,77.3C-14.8,78,-31.2,71.4,-44.2,62C-57.2,52.6,-66.8,40.4,-73.6,26.9C-80.4,13.4,-84.4,-1.4,-80.4,-14.8C-76.4,-28.2,-64.4,-40.2,-51.8,-47.9C-39.2,-55.6,-26,-59,-12.8,-61.3C0.4,-63.6,13.6,-64.8,30.5,-83.6L44.7,-76.4Z" transform="translate(100 100)" />
-                    </svg>
-                </div>`;
+            if (playArea.querySelector('svg') === null) {
+                playArea.innerHTML = `<div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none z-0">
+                        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="w-full h-full fill-pink-400">
+                            <path d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,81.6,-46.6C91.4,-34.1,98.1,-19.2,95.8,-5.3C93.5,8.6,82.2,21.4,71.3,32.2C60.4,43,49.9,51.8,38.3,60.2C26.7,68.6,14,76.6,-0.4,77.3C-14.8,78,-31.2,71.4,-44.2,62C-57.2,52.6,-66.8,40.4,-73.6,26.9C-80.4,13.4,-84.4,-1.4,-80.4,-14.8C-76.4,-28.2,-64.4,-40.2,-51.8,-47.9C-39.2,-55.6,-26,-59,-12.8,-61.3C0.4,-63.6,13.6,-64.8,30.5,-83.6L44.7,-76.4Z" transform="translate(100 100)" />
+                        </svg>
+                    </div>`;
+            }
 
             const containerRect = playArea.getBoundingClientRect();
             const elSize = getBubbleSize();
@@ -399,7 +413,7 @@
 
                     const bubble = document.createElement('div');
                     bubble.textContent = item.char;
-                    bubble.dataset.char = item.char; // Identificador para a dica
+                    bubble.dataset.char = item.char;
                     bubble.className = `letter-bubble floating ${item.color}`;
                     
                     bubble.style.width = `${elSize}px`;
@@ -411,8 +425,9 @@
 
                     const handleInteraction = (e) => {
                         e.preventDefault(); 
-                        e.stopPropagation(); // Impede o efeito global de toque duplicar
-                        globalTouchEffect(e); // Dispara efeito no toque da bolha também
+                        e.stopPropagation();
+                        // Dispara efeito de toque global (partículas) aqui também, pois a bolha intercepta o body click
+                        globalTouchEffect(e); 
                         handleInput(item.char, bubble, item.color);
                     };
 
@@ -424,36 +439,139 @@
             });
             
             resetIdleHintTimer(); // Começa a contar tempo para dica
+            updateHUD();
+        }
+
+        // NOVO: Função para processar o feedback e controlar o fluxo
+        function processFeedback(char, isCorrect, element, colorClass) {
+            if (isProcessingInput) return;
+            isProcessingInput = true;
+            clearTimeout(idleHintTimer);
+            synth.cancel(); // Garante que a narração anterior pare
+
+            // Ocultar todas as bolhas ativas e desabilitar eventos
+            document.querySelectorAll('.letter-bubble').forEach(b => {
+                b.style.opacity = '0';
+                b.style.pointerEvents = 'none';
+                b.classList.remove('floating', 'hint-active');
+            });
+            
+            const feedbackOverlay = document.getElementById('feedbackOverlay');
+            const feedbackLetter = document.getElementById('feedbackLetter');
+            
+            // Configura o visual do feedback
+            feedbackLetter.textContent = char;
+            feedbackLetter.className = `text-white text-9xl md:text-[14rem] font-['Fredoka_One'] drop-shadow-lg transition-transform duration-300`;
+            
+            if (isCorrect) {
+                // Foco Seletivo: Acerto (Verde/Brilhante)
+                feedbackLetter.classList.add('text-green-300', 'animate-pulse');
+                feedbackOverlay.classList.remove('bg-black/50', 'bg-red-600/70');
+                feedbackOverlay.classList.add('bg-green-600/70');
+                speak(`Acertou! ${char}`, true);
+                playSound('success');
+
+                // Animação de explosão da bolha original
+                element.classList.add('correct-hit');
+            } else {
+                // Foco Seletivo: Erro Educativo (Vermelho Suave/Neutro)
+                feedbackLetter.classList.add('text-gray-300');
+                feedbackOverlay.classList.remove('bg-black/50', 'bg-green-600/70');
+                feedbackOverlay.classList.add('bg-red-600/70');
+                speak(`Essa é o ${char}!`, true); 
+                playSound('pop'); 
+                
+                // Animação de erro na bolha (shake)
+                element.classList.remove('shake');
+                void element.offsetWidth; 
+                element.classList.add('shake');
+            }
+
+            // Mostra o feedback e anima a letra no centro
+            feedbackOverlay.classList.remove('hidden');
+            void feedbackLetter.offsetWidth; // Força reflow
+            feedbackLetter.classList.add('scale-100');
+
+            // 2. Espera pelo feedback visual/auditivo
+            const feedbackDuration = 1500; // 1.5 segundos de foco total
+
+            setTimeout(() => {
+                // Limpa a tela
+                feedbackLetter.classList.remove('scale-100', 'animate-pulse');
+                feedbackOverlay.classList.add('hidden');
+                feedbackOverlay.classList.remove('bg-green-600/70', 'bg-red-600/70');
+                feedbackOverlay.classList.add('bg-black/50'); 
+                
+                // Remove a bolha original (se correta, ou a que errou após o shake)
+                if(element.parentNode) element.parentNode.removeChild(element);
+
+                // 3. Atualiza o estado do jogo
+                if (isCorrect) {
+                    // Preenche o slot e avança
+                    const slot = document.getElementById(`slot-${currentStep}`);
+                    // Tenta encontrar a classe de tamanho (ex: w-12 h-14 text-3xl)
+                    const slotSizeMatch = slot.className.match(/(w-\d+-h-\d+\s+text-\w+)/);
+                    const slotSizeClass = slotSizeMatch ? slotSizeMatch[0] : '';
+                    
+                    slot.textContent = char;
+                    // Limpa todas as classes de cor e estilo do slot
+                    slot.className = `letter-slot ${slotSizeClass} border-4 border-white rounded-xl flex items-center justify-center text-white font-bold pop-in shadow-lg ${colorClass.split(' ')[0]}`; // Aplica a nova cor de fundo
+
+                    currentStep++;
+
+                    if (currentStep === targetName.length) {
+                        setTimeout(winGame, 300);
+                        return;
+                    }
+                } 
+
+                // 4. Repopula a tela
+                spawnBubbles();
+                isProcessingInput = false;
+                
+                // Dispara a narração da próxima letra
+                if (currentStep < targetName.length) {
+                    setTimeout(() => speak("Onde está o " + targetName[currentStep] + "?"), 500);
+                }
+
+            }, feedbackDuration);
+        }
+
+        function handleInput(char, element, colorClass) {
+            if (isProcessingInput) return; // Ignora toques durante o foco seletivo
+            
+            const expectedChar = targetName[currentStep];
+            const isCorrect = (char === expectedChar);
+
+            // Inicia o processo de feedback focado, que controla o fluxo
+            processFeedback(char, isCorrect, element, colorClass);
         }
 
         // --- DICA AUTOMÁTICA ---
         function resetIdleHintTimer() {
             clearTimeout(idleHintTimer);
-            // Remove dica de todos
             document.querySelectorAll('.letter-bubble').forEach(b => b.classList.remove('hint-active'));
             
-            // Se ainda tem jogo
-            if (!document.getElementById('gameArea').classList.contains('hidden')) {
+            if (!document.getElementById('gameArea').classList.contains('hidden') && !isProcessingInput) {
                 idleHintTimer = setTimeout(showVisualHint, 6000); // 6 segundos sem fazer nada
             }
         }
 
         function showVisualHint() {
             const currentLetter = targetName[currentStep];
-            // Encontra UMA bolha que tenha a letra certa
             const correctBubble = Array.from(document.querySelectorAll('.letter-bubble'))
                 .find(b => b.textContent === currentLetter);
             
-            if (correctBubble) {
+            if (correctBubble && !isProcessingInput) {
                 correctBubble.classList.add('hint-active');
-                speak("Onde está o " + currentLetter + "?", true); // Lembra a criança
+                speak("Onde está o " + currentLetter + "?", true);
             }
         }
 
         // --- CORE DO JOGO ---
         function startGame() {
             initAudio();
-            speak(""); // Aquece voz
+            speak("");
 
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('gameArea').classList.remove('hidden');
@@ -471,25 +589,26 @@
             }
             
             currentStep = 0;
+            isProcessingInput = false;
             document.getElementById('winScreen').classList.add('hidden');
+            document.getElementById('feedbackOverlay').classList.add('hidden'); // Limpa overlay
             
             const slotsContainer = document.getElementById('slots-container');
             slotsContainer.innerHTML = '';
             
             const w = window.innerWidth;
-            // Slots maiores para melhor visualização
             const slotSizeClass = w < 600 ? 'w-12 h-14 text-3xl' : 'w-16 h-20 text-5xl';
 
             targetName.forEach((char, index) => {
                 const slot = document.createElement('div');
                 slot.id = `slot-${index}`;
+                // Inclui a classe de tamanho para facilitar a recuperação no feedback
                 slot.className = `letter-slot ${slotSizeClass} border-4 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-gray-300 font-bold`;
                 slot.textContent = ""; 
                 slotsContainer.appendChild(slot);
             });
 
             spawnBubbles();
-            updateHUD();
         }
 
         function updateHUD() {
@@ -510,79 +629,15 @@
                 const letterDisplay = document.getElementById('target-letter-display');
                 letterDisplay.innerText = letter;
                 
-                // Animação na letra alvo no topo
                 letterDisplay.classList.remove('pop-in');
                 void letterDisplay.offsetWidth;
                 letterDisplay.classList.add('pop-in');
             }
         }
 
-        function handleInput(char, element, colorClass) {
-            const expectedChar = targetName[currentStep];
-
-            if (char === expectedChar) {
-                // ACERTOU
-                speak("Isso! É o " + char);
-                playSound('success');
-
-                element.classList.remove('floating', 'hint-active');
-                element.classList.add('correct-hit');
-
-                // Preenche slot
-                const slot = document.getElementById(`slot-${currentStep}`);
-                slot.textContent = char;
-                slot.className = slot.className.replace('text-gray-300', 'text-white');
-                
-                // Remove classes antigas de cor para garantir
-                slot.className = slot.className.replace(/bg-\w+-\d+/g, '').replace(/border-\w+-\d+/g, '');
-                
-                slot.classList.add(colorClass.split(' ')[0], 'border-white', 'pop-in', 'shadow-lg'); // Pega só a cor de fundo
-                slot.classList.remove('border-dashed', 'bg-white/60');
-
-                // Explosão de confete na letra certa
-                const rect = slot.getBoundingClientRect();
-                confetti({
-                    particleCount: 40,
-                    spread: 60,
-                    origin: { 
-                        x: (rect.left + rect.width/2) / window.innerWidth, 
-                        y: (rect.top + rect.height/2) / window.innerHeight
-                    },
-                    colors: ['#ffffff', '#fdf2f8', '#fbbf24'],
-                    disableForReducedMotion: true
-                });
-
-                setTimeout(() => {
-                    if(element.parentNode) element.parentNode.removeChild(element);
-                }, 300);
-
-                currentStep++;
-
-                if (currentStep === targetName.length) {
-                    clearTimeout(idleHintTimer);
-                    setTimeout(winGame, 800);
-                } else {
-                    updateHUD();
-                    resetIdleHintTimer();
-                }
-
-            } else {
-                // ERROU (Mas educativo!)
-                if (navigator.vibrate) navigator.vibrate(50);
-                
-                // Em vez de só som de erro, ensina qual é a letra que ela tocou
-                speak(`Essa é o ${char}!`); 
-                playSound('pop'); // Som divertido, não de erro
-
-                element.classList.remove('shake');
-                void element.offsetWidth; 
-                element.classList.add('shake');
-                
-                resetIdleHintTimer(); // Reseta timer para não dar dica imediatamente após erro
-            }
-        }
-
         function winGame() {
+            clearTimeout(idleHintTimer);
+            isProcessingInput = true;
             const word = targetName.join('');
             speak(`Parabéns! Você escreveu ${word}! Muito bem!`);
             playSound('success');
@@ -608,7 +663,6 @@
 
         // --- LISTA DE PALAVRAS SIMPLIFICADA (3-4 Letras) ---
         const wordList = [
-            // Muito Fáceis (3 letras)
             { palavra: "SOL", emoji: "☀️" },
             { palavra: "LUA", emoji: "🌙" },
             { palavra: "PAI", emoji: "👨‍👧" },
@@ -618,9 +672,6 @@
             { palavra: "CEU", emoji: "☁️" },
             { palavra: "RIO", emoji: "💧" },
             { palavra: "GOL", emoji: "⚽" },
-            { palavra: "FLO", emoji: "🌸" }, // Adaptação para 3 letras se necessário, ou FLOR
-            
-            // Fáceis (4 letras)
             { palavra: "FLOR", emoji: "🌸" },
             { palavra: "GATO", emoji: "🐈" },
             { palavra: "BOLA", emoji: "⚽" },
@@ -664,7 +715,8 @@
             clearTimeout(resizeTimer);
             resizeTimer = setTimeout(() => {
                 if (!document.getElementById('gameArea').classList.contains('hidden') && 
-                    document.getElementById('winScreen').classList.contains('hidden')) {
+                    document.getElementById('winScreen').classList.contains('hidden') &&
+                    !isProcessingInput) {
                      spawnBubbles(); 
                 }
             }, 200);
