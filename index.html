@@ -25,16 +25,14 @@
             font-family: 'Fredoka One', cursive;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             background-color: rgba(255, 255, 255, 0.6);
-            /* Garante que o texto fique centralizado independente do tamanho */
             display: flex;
             align-items: center;
             justify-content: center;
         }
         
-        /* NOVO: Classe para slots com letra preenchida */
         .slot-filled {
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Sombra mais forte quando preenchido */
-            border: 3px solid white !important; /* Borda um pouco menor no mobile para não ocupar espaço */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border: 3px solid white !important;
             transform: scale(1.05);
         }
 
@@ -54,7 +52,7 @@
             border: 3px solid white;
             touch-action: manipulation; 
             z-index: 20;
-            will-change: transform, opacity; /* Otimização para animação */
+            will-change: transform, opacity;
             transition: transform 0.2s, opacity 0.2s;
         }
 
@@ -62,10 +60,9 @@
             animation: float 3s ease-in-out infinite;
         }
 
-        /* Dica visual forte para ajudar a encontrar */
         .hint-active {
             animation: bounceHint 1s infinite !important;
-            box-shadow: 0 0 30px #fbbf24 !important; /* Brilho amarelo forte */
+            box-shadow: 0 0 30px #fbbf24 !important;
             border-color: #fbbf24 !important;
             z-index: 30 !important;
         }
@@ -141,15 +138,28 @@
             transition: background-color 0.4s ease;
         }
         
-        /* Ajuste fino para telas muito pequenas */
         @media (max-height: 600px) {
             #header-container {
                 padding-top: 0.5rem;
                 padding-bottom: 0.5rem;
             }
             .letter-slot {
-                 height: 14vw !important; /* Um pouco menor na vertical em telas baixas */
+                 height: 14vw !important;
             }
+        }
+
+        /* NOVO: Classe para a palavra final gigante */
+        .hero-word {
+            text-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+            background: -webkit-linear-gradient(#ec4899, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: heroPulse 2s infinite ease-in-out;
+        }
+
+        @keyframes heroPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
     </style>
 </head>
@@ -181,12 +191,6 @@
                 <span id="target-letter-display" class="text-5xl md:text-6xl font-['Fredoka_One'] text-pink-600 font-bold drop-shadow-sm">L</span>
             </div>
             
-            <!-- 
-                 CORREÇÃO PRINCIPAL:
-                 Adicionado 'flex-nowrap' para impedir quebra de linha.
-                 Adicionado 'w-full' para ocupar a largura.
-                 'gap-1' para ficar juntinho no celular.
-            -->
             <div id="slots-container" class="flex flex-nowrap gap-1 md:gap-2 justify-center items-center px-1 min-h-[70px] w-full max-w-4xl">
                 <!-- Slots dinâmicos -->
             </div>
@@ -204,24 +208,32 @@
             </div>
         </div>
 
-        <!-- NOVO: Overlay de Feedback Centralizado (Foco Seletivo) -->
+        <!-- Overlay de Feedback Centralizado -->
         <div id="feedbackOverlay" class="hidden absolute inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm pointer-events-none">
             <div id="feedbackLetter" class="text-white text-9xl md:text-[14rem] font-['Fredoka_One'] drop-shadow-lg scale-0 transition-transform duration-300"></div>
         </div>
 
-        <!-- Tela de Vitória -->
-        <div id="winScreen" class="hidden absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4">
-            <div class="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl max-w-md w-full mx-4 relative overflow-hidden border-4 border-pink-200">
-                <div class="absolute top-0 left-0 w-full h-4 bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400"></div>
-                <div id="winEmojiDisplay" class="text-7xl md:text-8xl mb-6 animate-bounce mt-4">🎉</div>
-                <p class="text-4xl md:text-5xl font-['Fredoka_One'] text-pink-500 mb-2">PARABÉNS!</p>
-                <p id="winMessage" class="text-2xl text-gray-600 font-bold mb-8">Você escreveu LAVINE!</p>
+        <!-- Tela de Vitória (ATUALIZADA) -->
+        <div id="winScreen" class="hidden absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-center p-4">
+            <div class="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl max-w-md w-full mx-4 relative overflow-hidden border-8 border-pink-100">
+                <div class="absolute top-0 left-0 w-full h-5 bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400"></div>
                 
-                <button onclick="getNewWords()" class="w-full py-5 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white text-2xl rounded-2xl shadow-lg active:scale-95 font-bold flex items-center justify-center gap-3 transition-all border-b-4 border-indigo-800 mb-4">
+                <!-- Emoji de Vitória -->
+                <div id="winEmojiDisplay" class="text-8xl md:text-9xl mb-4 animate-bounce mt-4 drop-shadow-md">🎉</div>
+                
+                <p class="text-3xl font-['Fredoka_One'] text-pink-400 mb-1">PARABÉNS!</p>
+                <p class="text-xl text-gray-400 font-bold mb-2">Você escreveu:</p>
+                
+                <!-- PALAVRA FINAL GIGANTE -->
+                <div id="finalWordContainer" class="mb-8 py-2">
+                    <p id="winWord" class="hero-word text-7xl md:text-8xl font-['Fredoka_One'] leading-none tracking-wide">PAI</p>
+                </div>
+                
+                <button onclick="getNewWords()" class="w-full py-5 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white text-2xl rounded-2xl shadow-xl active:scale-95 font-bold flex items-center justify-center gap-3 transition-all border-b-4 border-indigo-800 mb-4">
                     ✨ Próxima Palavra
                 </button>
                 
-                <button onclick="resetGame(true)" class="w-full py-3 bg-gray-100 text-gray-500 text-lg rounded-xl active:scale-95 font-bold transition-all hover:bg-gray-200">
+                <button onclick="resetGame(true)" class="w-full py-3 bg-gray-100 text-gray-500 text-lg rounded-xl active:scale-95 font-bold transition-all hover:bg-gray-200 hover:text-gray-700">
                     Jogar "LAVINE" de Novo
                 </button>
             </div>
@@ -239,7 +251,6 @@
         let targetName = [...defaultName];
         let currentEmoji = '👧🏻'; 
 
-        // Cores vibrantes e atraentes
         const colors = [
             'bg-pink-500 border-pink-300', 
             'bg-purple-500 border-purple-300', 
@@ -252,12 +263,10 @@
         let currentStep = 0;
         let synth = window.speechSynthesis;
         let audioCtx;
-        let idleHintTimer; // Timer para dica automática
-        let isProcessingInput = false; // Flag para Foco Seletivo
+        let idleHintTimer; 
+        let isProcessingInput = false; 
 
-        // --- EFEITOS VISUAIS DE TOQUE (Rastro Mágico) ---
         function globalTouchEffect(e) {
-            // Cria partículas onde a criança toca
             const x = e.clientX || (e.touches && e.touches[0].clientX);
             const y = e.clientY || (e.touches && e.touches[0].clientY);
             
@@ -273,12 +282,9 @@
                     ticks: 50
                 });
             }
-            
-            // Reseta o timer da dica toda vez que ela toca na tela
             resetIdleHintTimer();
         }
 
-        // --- SISTEMA DE ÁUDIO ---
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -290,22 +296,18 @@
 
         function speak(text, priority = false) {
             if (priority) synth.cancel();
-            
             const utterThis = new SpeechSynthesisUtterance(text);
             utterThis.lang = 'pt-BR';
             utterThis.rate = 1.0;
             utterThis.pitch = 1.2;
-
             const voices = synth.getVoices();
             const ptVoice = voices.find(v => v.lang.includes('pt-BR')) || voices.find(v => v.lang.includes('pt'));
             if (ptVoice) utterThis.voice = ptVoice;
-
             synth.speak(utterThis);
         }
 
         function playSound(type) {
             if (!audioCtx) initAudio();
-            
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             osc.connect(gainNode);
@@ -320,7 +322,6 @@
                 osc.start();
                 osc.stop(audioCtx.currentTime + 0.6);
             } else if (type === 'pop') {
-                // Som de "pop" (usado para erros educativos)
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(400, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.1);
@@ -329,7 +330,6 @@
                 osc.start();
                 osc.stop(audioCtx.currentTime + 0.1);
             } else {
-                // Som suave de "tente de novo"
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(200, audioCtx.currentTime);
                 osc.frequency.linearRampToValueAtTime(150, audioCtx.currentTime + 0.3);
@@ -340,7 +340,6 @@
             }
         }
 
-        // --- LÓGICA DE POSICIONAMENTO ---
         function getBubbleSize() {
             const w = window.innerWidth;
             const h = window.innerHeight;
@@ -363,24 +362,18 @@
         function findSafePosition(placedRects, containerRect, elSize) {
             const padding = 20; 
             const elementPadding = 15; 
-            
             const maxX = containerRect.width - elSize - padding;
             const maxY = containerRect.height - elSize - padding;
-
             if (maxX <= 0 || maxY <= 0) return null;
-
             let newRect;
             let isOverlapping = true;
             let attempts = 0;
             const maxAttempts = 150;
-
             while (isOverlapping && attempts < maxAttempts) {
                 attempts++;
                 const x = Math.floor(Math.random() * (maxX - padding)) + padding;
                 const y = Math.floor(Math.random() * (maxY - padding)) + padding;
-                
                 newRect = { x, y, width: elSize, height: elSize };
-                
                 isOverlapping = false;
                 for (const rect of placedRects) {
                     if (isOverlappingRects(newRect, rect, elementPadding)) { 
@@ -389,8 +382,6 @@
                     }
                 }
             }
-            
-            // Fallback de grid
             if (attempts >= maxAttempts) { 
                 const cols = Math.floor(containerRect.width / (elSize + 5));
                 const index = placedRects.length;
@@ -408,11 +399,9 @@
 
         function spawnBubbles() {
             const playArea = document.getElementById('play-area');
-            // Remove bolhas existentes
             const existingBubbles = playArea.querySelectorAll('.letter-bubble');
             existingBubbles.forEach(b => b.remove());
 
-            // Recoloca SVG
             if (playArea.querySelector('svg') === null) {
                 playArea.innerHTML = `<div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none z-0">
                         <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="w-full h-full fill-pink-400">
@@ -433,48 +422,38 @@
 
             lettersData.forEach((item) => {
                 const newRect = findSafePosition(placedRects, containerRect, elSize);
-                
                 if (newRect) {
                     placedRects.push(newRect);
-
                     const bubble = document.createElement('div');
                     bubble.textContent = item.char;
                     bubble.dataset.char = item.char;
                     bubble.className = `letter-bubble floating ${item.color}`;
-                    
                     bubble.style.width = `${elSize}px`;
                     bubble.style.height = `${elSize}px`;
                     bubble.style.fontSize = `${elSize * 0.55}px`;
                     bubble.style.left = `${newRect.x}px`;
                     bubble.style.top = `${newRect.y}px`;
                     bubble.style.animationDelay = `-${Math.random() * 3}s`;
-
                     const handleInteraction = (e) => {
                         e.preventDefault(); 
                         e.stopPropagation();
-                        // Dispara efeito de toque global (partículas) aqui também
                         globalTouchEffect(e); 
                         handleInput(item.char, bubble, item.color);
                     };
-
                     bubble.addEventListener('touchstart', handleInteraction, { passive: false });
                     bubble.addEventListener('mousedown', handleInteraction);
-                    
                     playArea.appendChild(bubble);
                 }
             });
-            
-            resetIdleHintTimer(); // Começa a contar tempo para dica
+            resetIdleHintTimer(); 
             updateHUD();
         }
 
-        // --- DICA AUTOMÁTICA ---
         function resetIdleHintTimer() {
             clearTimeout(idleHintTimer);
             document.querySelectorAll('.letter-bubble').forEach(b => b.classList.remove('hint-active'));
-            
             if (!document.getElementById('gameArea').classList.contains('hidden') && !isProcessingInput) {
-                idleHintTimer = setTimeout(showVisualHint, 6000); // 6 segundos sem fazer nada
+                idleHintTimer = setTimeout(showVisualHint, 6000); 
             }
         }
 
@@ -482,21 +461,18 @@
             const currentLetter = targetName[currentStep];
             const correctBubble = Array.from(document.querySelectorAll('.letter-bubble'))
                 .find(b => b.textContent === currentLetter);
-            
             if (correctBubble && !isProcessingInput) {
                 correctBubble.classList.add('hint-active');
                 speak("Onde está o " + currentLetter + "?", true);
             }
         }
         
-        // NOVO: Função para processar o feedback e controlar o fluxo
         function processFeedback(char, isCorrect, element, colorClass) {
             if (isProcessingInput) return;
             isProcessingInput = true;
             clearTimeout(idleHintTimer);
-            synth.cancel(); // Garante que a narração anterior pare
+            synth.cancel(); 
 
-            // Ocultar todas as bolhas ativas e desabilitar eventos
             document.querySelectorAll('.letter-bubble').forEach(b => {
                 b.style.opacity = '0';
                 b.style.pointerEvents = 'none';
@@ -506,75 +482,56 @@
             const feedbackOverlay = document.getElementById('feedbackOverlay');
             const feedbackLetter = document.getElementById('feedbackLetter');
             
-            // Configura o visual do feedback
             feedbackLetter.textContent = char;
             feedbackLetter.className = `text-white text-9xl md:text-[14rem] font-['Fredoka_One'] drop-shadow-lg transition-transform duration-300`;
             
             if (isCorrect) {
-                // Foco Seletivo: Acerto (Verde/Brilhante)
                 feedbackLetter.classList.add('text-green-300', 'animate-pulse');
                 feedbackOverlay.classList.remove('bg-black/50', 'bg-red-600/70');
                 feedbackOverlay.classList.add('bg-green-600/70');
                 speak(`Acertou! ${char}`, true);
                 playSound('success');
-
-                // Animação de explosão da bolha original
                 element.classList.add('correct-hit');
-
-                // --- CORREÇÃO SOLICITADA: CONFETES NO ACERTO DA LETRA ---
                 confetti({
                     particleCount: 30,
                     spread: 60,
                     origin: { y: 0.6 },
-                    colors: ['#22c55e', '#ffffff', '#fbbf24'], // Cores do tema (verde, branco, amarelo)
+                    colors: ['#22c55e', '#ffffff', '#fbbf24'], 
                     startVelocity: 20,
                     gravity: 0.8,
                     ticks: 60
                 });
-
             } else {
-                // Foco Seletivo: Erro Educativo (Vermelho Suave/Neutro)
                 feedbackLetter.classList.add('text-gray-300');
                 feedbackOverlay.classList.remove('bg-black/50', 'bg-green-600/70');
                 feedbackOverlay.classList.add('bg-red-600/70');
                 speak(`Essa é o ${char}!`, true); 
                 playSound('pop'); 
-                
-                // Animação de erro na bolha (shake)
                 element.classList.remove('shake');
                 void element.offsetWidth; 
                 element.classList.add('shake');
             }
 
-            // Mostra o feedback e anima a letra no centro
             feedbackOverlay.classList.remove('hidden');
-            void feedbackLetter.offsetWidth; // Força reflow
+            void feedbackLetter.offsetWidth; 
             feedbackLetter.classList.add('scale-100');
 
-            // 2. Espera pelo feedback visual/auditivo
-            const feedbackDuration = 1500; // 1.5 segundos de foco total
+            const feedbackDuration = 1500; 
 
             setTimeout(() => {
-                // Limpa a tela
                 feedbackLetter.classList.remove('scale-100', 'animate-pulse');
                 feedbackOverlay.classList.add('hidden');
                 feedbackOverlay.classList.remove('bg-green-600/70', 'bg-red-600/70');
                 feedbackOverlay.classList.add('bg-black/50'); 
                 
-                // Remove a bolha original (se correta, ou a que errou após o shake)
                 if(element.parentNode) element.parentNode.removeChild(element);
 
-                // 3. Atualiza o estado do jogo
                 if (isCorrect) {
-                    // Preenche o slot e avança
                     const slot = document.getElementById(`slot-${currentStep}`);
-                    
                     slot.textContent = char;
-                    // Remove classes de cor anteriores
                     slot.className = slot.className.replace(/bg-\w+-\d+/g, '').replace(/border-\w+-\d+/g, '');
-                    
-                    slot.classList.add('slot-filled', 'pop-in', 'shadow-lg', 'text-white', colorClass.split(' ')[0]); // Aplica a cor de fundo e novos estilos
-                    slot.classList.remove('border-dashed', 'border-gray-300', 'text-gray-300'); // Remove estilos de slot vazio
+                    slot.classList.add('slot-filled', 'pop-in', 'shadow-lg', 'text-white', colorClass.split(' ')[0]); 
+                    slot.classList.remove('border-dashed', 'border-gray-300', 'text-gray-300'); 
 
                     currentStep++;
 
@@ -583,37 +540,26 @@
                         return;
                     }
                 } 
-
-                // 4. Repopula a tela
                 spawnBubbles();
                 isProcessingInput = false;
-                
-                // Dispara a narração da próxima letra
                 if (currentStep < targetName.length) {
                     setTimeout(() => speak("Onde está o " + targetName[currentStep] + "?"), 500);
                 }
-
             }, feedbackDuration);
         }
 
         function handleInput(char, element, colorClass) {
-            if (isProcessingInput) return; // Ignora toques durante o foco seletivo
-            
+            if (isProcessingInput) return; 
             const expectedChar = targetName[currentStep];
             const isCorrect = (char === expectedChar);
-
-            // Inicia o processo de feedback focado, que controla o fluxo
             processFeedback(char, isCorrect, element, colorClass);
         }
 
-        // --- CORE DO JOGO ---
         function startGame() {
             initAudio();
             speak("");
-
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('gameArea').classList.remove('hidden');
-            
             setTimeout(() => {
                 resetGame(true);
                 setTimeout(() => speak("Vamos procurar a letra " + targetName[0] + "?"), 500);
@@ -625,67 +571,45 @@
                 targetName = [...defaultName];
                 currentEmoji = '👧🏻';
             }
-            
             currentStep = 0;
             isProcessingInput = false;
             document.getElementById('winScreen').classList.add('hidden');
-            document.getElementById('feedbackOverlay').classList.add('hidden'); // Limpa overlay
-            
+            document.getElementById('feedbackOverlay').classList.add('hidden'); 
             const slotsContainer = document.getElementById('slots-container');
             slotsContainer.innerHTML = '';
-            
             const w = window.innerWidth;
-            
-            // --- CORREÇÃO DE LAYOUT ---
-            // Lógica inteligente para caber na tela:
-            // Se for celular (<600px), usamos "vw" (largura da tela) para definir o tamanho.
-            // "13vw" significa 13% da largura da tela. Com 6 letras (6 * 13 = 78%), sobra espaço para margens.
-            // Também limitamos o tamanho máximo (max-w) para não ficar gigante em telas médias.
-            
             const isMobile = w < 600;
-            
-            // Definição dinâmica do CSS dos slots
             let slotSizeClass;
             if (isMobile) {
-                // Mobile: Tamanho relativo à tela (vw) para NUNCA quebrar linha
-                // text-[8vw] garante que a letra caiba dentro do quadrado proporcionalmente
                 slotSizeClass = 'w-[13vw] h-[16vw] max-w-[60px] max-h-[80px] text-[8vw]';
             } else {
-                // Desktop/Tablet: Tamanho fixo confortável
                 slotSizeClass = 'w-20 h-24 text-6xl';
             }
-
             targetName.forEach((char, index) => {
                 const slot = document.createElement('div');
                 slot.id = `slot-${index}`;
-                // Inclui a classe de tamanho e cor inicial
                 slot.className = `letter-slot ${slotSizeClass} border-4 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-gray-300 font-bold`;
                 slot.textContent = ""; 
                 slotsContainer.appendChild(slot);
             });
-
             spawnBubbles();
         }
 
         function updateHUD() {
             document.querySelectorAll('.letter-slot').forEach((el, idx) => {
-                // Remove a classe de preenchido antes de aplicar o destaque
                 el.classList.remove('highlight-slot', 'border-pink-500', 'border-solid', 'slot-filled');
                 el.classList.add('border-dashed');
-                
                 if (idx === currentStep) {
                     el.classList.add('highlight-slot', 'border-pink-500');
                     el.classList.remove('border-dashed');
                     el.classList.add('border-solid');
                 }
             });
-
             document.getElementById('target-emoji-display').textContent = currentEmoji;
             if (currentStep < targetName.length) {
                 const letter = targetName[currentStep];
                 const letterDisplay = document.getElementById('target-letter-display');
                 letterDisplay.innerText = letter;
-                
                 letterDisplay.classList.remove('pop-in');
                 void letterDisplay.offsetWidth;
                 letterDisplay.classList.add('pop-in');
@@ -700,7 +624,8 @@
             playSound('success');
             
             document.getElementById('winEmojiDisplay').textContent = currentEmoji;
-            document.getElementById('winMessage').textContent = `Você escreveu ${word}!`;
+            // ATUALIZADO: Apenas coloca a palavra no elemento dedicado, não a frase completa
+            document.getElementById('winWord').textContent = word; 
             document.getElementById('winScreen').classList.remove('hidden');
             
             const duration = 3000;
@@ -718,7 +643,6 @@
             }());
         }
 
-        // --- LISTA DE PALAVRAS SIMPLIFICADA (3-4 Letras) ---
         const wordList = [
             { palavra: "SOL", emoji: "☀️" },
             { palavra: "LUA", emoji: "🌙" },
@@ -746,24 +670,18 @@
         async function getNewWords() {
             document.getElementById('loadingOverlay').classList.remove('hidden');
             document.getElementById('loadingOverlay').classList.add('flex');
-
             await new Promise(resolve => setTimeout(resolve, 800));
-            
             let newIndex = -1;
             do {
                 newIndex = Math.floor(Math.random() * wordList.length);
             } while (wordList.length > 1 && newIndex === lastWordIndex); 
-            
             lastWordIndex = newIndex;
             const randomItem = wordList[newIndex];
-            
             targetName = randomItem.palavra.toUpperCase().split('');
             currentEmoji = randomItem.emoji;
-            
             resetGame(false); 
             document.getElementById('loadingOverlay').classList.add('hidden');
             document.getElementById('loadingOverlay').classList.remove('flex');
-            
             speak(`Agora vamos achar: ${randomItem.palavra}`);
         }
 
