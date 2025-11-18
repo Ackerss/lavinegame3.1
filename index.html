@@ -250,6 +250,8 @@
         const defaultName = ['L', 'A', 'V', 'I', 'N', 'E'];
         let targetName = [...defaultName];
         let currentEmoji = '👧🏻'; 
+        // NOVO: Objeto para guardar a palavra atual inteira e sua pronúncia
+        let currentWordObj = { palavra: "LAVINE", emoji: "👧🏻", pronuncia: "LAVÍNE" };
 
         const colors = [
             'bg-pink-500 border-pink-300', 
@@ -457,13 +459,24 @@
             }
         }
 
+        // NOVO: Função para pegar o SOM da letra e não o nome técnico
+        function getLetterSound(char) {
+            const sounds = {
+                'E': 'Ê',
+                'O': 'Ó',
+                'A': 'Á'
+            };
+            return sounds[char] || char;
+        }
+
         function showVisualHint() {
             const currentLetter = targetName[currentStep];
             const correctBubble = Array.from(document.querySelectorAll('.letter-bubble'))
                 .find(b => b.textContent === currentLetter);
             if (correctBubble && !isProcessingInput) {
                 correctBubble.classList.add('hint-active');
-                speak("Onde está o " + currentLetter + "?", true);
+                // CORREÇÃO: Usa getLetterSound para o narrador falar "Letra Ê"
+                speak("Onde está a letra " + getLetterSound(currentLetter) + "?", true);
             }
         }
         
@@ -489,7 +502,8 @@
                 feedbackLetter.classList.add('text-green-300', 'animate-pulse');
                 feedbackOverlay.classList.remove('bg-black/50', 'bg-red-600/70');
                 feedbackOverlay.classList.add('bg-green-600/70');
-                speak(`Acertou! ${char}`, true);
+                // CORREÇÃO: Usa som da letra no acerto
+                speak(`Acertou! ${getLetterSound(char)}`, true);
                 playSound('success');
                 element.classList.add('correct-hit');
                 confetti({
@@ -505,7 +519,8 @@
                 feedbackLetter.classList.add('text-gray-300');
                 feedbackOverlay.classList.remove('bg-black/50', 'bg-green-600/70');
                 feedbackOverlay.classList.add('bg-red-600/70');
-                speak(`Essa é o ${char}!`, true); 
+                // CORREÇÃO: Frase melhorada "Essa é a letra X" e som corrigido
+                speak(`Essa é a letra ${getLetterSound(char)}!`, true); 
                 playSound('pop'); 
                 element.classList.remove('shake');
                 void element.offsetWidth; 
@@ -543,7 +558,8 @@
                 spawnBubbles();
                 isProcessingInput = false;
                 if (currentStep < targetName.length) {
-                    setTimeout(() => speak("Onde está o " + targetName[currentStep] + "?"), 500);
+                    // CORREÇÃO: Som da próxima letra
+                    setTimeout(() => speak("Onde está a letra " + getLetterSound(targetName[currentStep]) + "?"), 500);
                 }
             }, feedbackDuration);
         }
@@ -562,7 +578,8 @@
             document.getElementById('gameArea').classList.remove('hidden');
             setTimeout(() => {
                 resetGame(true);
-                setTimeout(() => speak("Vamos procurar a letra " + targetName[0] + "?"), 500);
+                // CORREÇÃO: Usa o som da primeira letra
+                setTimeout(() => speak("Vamos procurar a letra " + getLetterSound(targetName[0]) + "?"), 500);
             }, 100);
         }
 
@@ -570,6 +587,7 @@
             if (useDefaultName) {
                 targetName = [...defaultName];
                 currentEmoji = '👧🏻';
+                currentWordObj = { palavra: "LAVINE", emoji: "👧🏻", pronuncia: "LAVÍNE" };
             }
             currentStep = 0;
             isProcessingInput = false;
@@ -620,11 +638,14 @@
             clearTimeout(idleHintTimer);
             isProcessingInput = true;
             const word = targetName.join('');
-            speak(`Parabéns! Você escreveu ${word}! Muito bem!`);
+            
+            // CORREÇÃO: Usa a pronúncia correta da palavra inteira
+            const pronunciation = currentWordObj.pronuncia || word;
+            
+            speak(`Parabéns! Você escreveu ${pronunciation}! Muito bem!`);
             playSound('success');
             
             document.getElementById('winEmojiDisplay').textContent = currentEmoji;
-            // ATUALIZADO: Apenas coloca a palavra no elemento dedicado, não a frase completa
             document.getElementById('winWord').textContent = word; 
             document.getElementById('winScreen').classList.remove('hidden');
             
@@ -643,14 +664,15 @@
             }());
         }
 
+        // CORREÇÃO: Adicionado campo 'pronuncia' para forçar o som correto
         const wordList = [
             { palavra: "SOL", emoji: "☀️" },
             { palavra: "LUA", emoji: "🌙" },
             { palavra: "PAI", emoji: "👨‍👧" },
-            { palavra: "MAE", emoji: "👩‍👧" },
+            { palavra: "MAE", emoji: "👩‍👧", pronuncia: "MÃE" },
             { palavra: "UVA", emoji: "🍇" },
             { palavra: "OVO", emoji: "🥚" },
-            { palavra: "CEU", emoji: "☁️" },
+            { palavra: "CEU", emoji: "☁️", pronuncia: "CÉU" },
             { palavra: "RIO", emoji: "💧" },
             { palavra: "GOL", emoji: "⚽" },
             { palavra: "FLOR", emoji: "🌸" },
@@ -659,10 +681,10 @@
             { palavra: "PATO", emoji: "🦆" },
             { palavra: "SAPO", emoji: "🐸" },
             { palavra: "CASA", emoji: "🏡" },
-            { palavra: "BEBE", emoji: "👶" },
+            { palavra: "BEBE", emoji: "👶", pronuncia: "BEBÊ" },
             { palavra: "DADO", emoji: "🎲" },
             { palavra: "BOLO", emoji: "🍰" },
-            { palavra: "LEAO", emoji: "🦁" }
+            { palavra: "LEAO", emoji: "🦁", pronuncia: "LEÃO" }
         ];
 
         let lastWordIndex = -1;
@@ -677,12 +699,19 @@
             } while (wordList.length > 1 && newIndex === lastWordIndex); 
             lastWordIndex = newIndex;
             const randomItem = wordList[newIndex];
+            
+            // Atualiza o objeto da palavra atual
+            currentWordObj = randomItem;
             targetName = randomItem.palavra.toUpperCase().split('');
             currentEmoji = randomItem.emoji;
+            
             resetGame(false); 
             document.getElementById('loadingOverlay').classList.add('hidden');
             document.getElementById('loadingOverlay').classList.remove('flex');
-            speak(`Agora vamos achar: ${randomItem.palavra}`);
+            
+            // CORREÇÃO: Usa a pronúncia correta na introdução
+            const pronunciation = randomItem.pronuncia || randomItem.palavra;
+            speak(`Agora vamos achar: ${pronunciation}`);
         }
 
         let resizeTimer;
