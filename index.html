@@ -161,6 +161,19 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
         }
+
+        /* Botão de Hard Mode */
+        .hard-mode-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+        .hard-mode-btn.active {
+            background: #fef08a; /* Amarelo */
+            border-color: #fbbf24;
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center" onclick="globalTouchEffect(event)">
@@ -183,12 +196,20 @@
     <div id="gameArea" class="w-full h-full flex flex-col hidden relative">
         
         <!-- Cabeçalho Fixo -->
-        <div id="header-container" class="flex-none pt-4 pb-2 px-2 flex flex-col items-center z-30 bg-white/40 backdrop-blur-md shadow-sm border-b border-white/20">
+        <div id="header-container" class="flex-none pt-4 pb-2 px-2 flex flex-col items-center z-30 bg-white/40 backdrop-blur-md shadow-sm border-b border-white/20 relative">
+            
+            <!-- Botão de Dificuldade (NOVO) -->
+            <button id="difficultyToggle" onclick="toggleHardMode()" class="absolute right-2 top-2 hard-mode-btn p-2 rounded-full flex items-center gap-2 z-50 text-sm font-bold text-gray-600">
+                <span id="diff-icon" class="text-xl">👀</span>
+                <span id="diff-text" class="hidden md:inline">Ver Letra</span>
+            </button>
+
             <div class="flex items-center gap-3 mb-2 bg-white px-5 py-2 rounded-full shadow-lg transform scale-90 md:scale-100 transition-transform" id="header-target">
-                <span class="text-gray-400 font-bold text-sm md:text-base uppercase tracking-wide mr-1">Ache o:</span>
+                <span class="text-gray-400 font-bold text-sm md:text-base uppercase tracking-wide mr-1" id="action-text">Ache o:</span>
                 <span id="target-emoji-display" class="text-4xl md:text-5xl drop-shadow-sm">👧🏻</span>
                 <div class="w-0.5 h-10 bg-gray-200 mx-1"></div>
-                <span id="target-letter-display" class="text-5xl md:text-6xl font-['Fredoka_One'] text-pink-600 font-bold drop-shadow-sm">L</span>
+                <!-- Onde a letra aparece ou desaparece -->
+                <span id="target-letter-display" class="text-5xl md:text-6xl font-['Fredoka_One'] text-pink-600 font-bold drop-shadow-sm min-w-[3rem] text-center">L</span>
             </div>
             
             <div id="slots-container" class="flex flex-nowrap gap-1 md:gap-2 justify-center items-center px-1 min-h-[70px] w-full max-w-4xl">
@@ -250,7 +271,6 @@
         const defaultName = ['L', 'A', 'V', 'I', 'N', 'E'];
         let targetName = [...defaultName];
         let currentEmoji = '👧🏻'; 
-        // NOVO: Objeto para guardar a palavra atual inteira e sua pronúncia
         let currentWordObj = { palavra: "LAVINE", emoji: "👧🏻", pronuncia: "LAVÍNE" };
 
         const colors = [
@@ -267,12 +287,15 @@
         let audioCtx;
         let idleHintTimer; 
         let isProcessingInput = false; 
+        // NOVO: Controle de dificuldade
+        let isHardMode = false;
 
         function globalTouchEffect(e) {
             const x = e.clientX || (e.touches && e.touches[0].clientX);
             const y = e.clientY || (e.touches && e.touches[0].clientY);
             
             if (x && y && !isProcessingInput) {
+                // Efeito sonoro suave ao tocar no fundo (opcional, removido para não poluir)
                 confetti({
                     particleCount: 8,
                     spread: 30,
@@ -285,6 +308,31 @@
                 });
             }
             resetIdleHintTimer();
+        }
+
+        // NOVO: Função para alternar o modo difícil
+        function toggleHardMode() {
+            isHardMode = !isHardMode;
+            const btn = document.getElementById('difficultyToggle');
+            const icon = document.getElementById('diff-icon');
+            const text = document.getElementById('diff-text');
+
+            if (isHardMode) {
+                // Modo Ouvir (Difícil)
+                btn.classList.add('active');
+                icon.textContent = '🙈'; // Macaco cobrindo olhos ou orelha
+                text.textContent = 'Ouvir Só';
+                speak("Modo ouvir ativado. Escute com atenção!", true);
+            } else {
+                // Modo Ver (Fácil)
+                btn.classList.remove('active');
+                icon.textContent = '👀';
+                text.textContent = 'Ver Letra';
+                speak("Modo visual ativado.", true);
+            }
+            
+            // Atualiza a tela imediatamente
+            updateHUD();
         }
 
         function initAudio() {
@@ -459,7 +507,6 @@
             }
         }
 
-        // NOVO: Função para pegar o SOM da letra e não o nome técnico
         function getLetterSound(char) {
             const sounds = {
                 'E': 'Ê',
@@ -475,7 +522,6 @@
                 .find(b => b.textContent === currentLetter);
             if (correctBubble && !isProcessingInput) {
                 correctBubble.classList.add('hint-active');
-                // CORREÇÃO: Usa getLetterSound para o narrador falar "Letra Ê"
                 speak("Onde está a letra " + getLetterSound(currentLetter) + "?", true);
             }
         }
@@ -502,7 +548,6 @@
                 feedbackLetter.classList.add('text-green-300', 'animate-pulse');
                 feedbackOverlay.classList.remove('bg-black/50', 'bg-red-600/70');
                 feedbackOverlay.classList.add('bg-green-600/70');
-                // CORREÇÃO: Usa som da letra no acerto
                 speak(`Acertou! ${getLetterSound(char)}`, true);
                 playSound('success');
                 element.classList.add('correct-hit');
@@ -519,7 +564,6 @@
                 feedbackLetter.classList.add('text-gray-300');
                 feedbackOverlay.classList.remove('bg-black/50', 'bg-green-600/70');
                 feedbackOverlay.classList.add('bg-red-600/70');
-                // CORREÇÃO: Frase melhorada "Essa é a letra X" e som corrigido
                 speak(`Essa é a letra ${getLetterSound(char)}!`, true); 
                 playSound('pop'); 
                 element.classList.remove('shake');
@@ -558,7 +602,6 @@
                 spawnBubbles();
                 isProcessingInput = false;
                 if (currentStep < targetName.length) {
-                    // CORREÇÃO: Som da próxima letra
                     setTimeout(() => speak("Onde está a letra " + getLetterSound(targetName[currentStep]) + "?"), 500);
                 }
             }, feedbackDuration);
@@ -578,7 +621,6 @@
             document.getElementById('gameArea').classList.remove('hidden');
             setTimeout(() => {
                 resetGame(true);
-                // CORREÇÃO: Usa o som da primeira letra
                 setTimeout(() => speak("Vamos procurar a letra " + getLetterSound(targetName[0]) + "?"), 500);
             }, 100);
         }
@@ -624,10 +666,26 @@
                 }
             });
             document.getElementById('target-emoji-display').textContent = currentEmoji;
+            
+            // Lógica Atualizada para o Modo Hard
             if (currentStep < targetName.length) {
                 const letter = targetName[currentStep];
                 const letterDisplay = document.getElementById('target-letter-display');
-                letterDisplay.innerText = letter;
+                
+                if (isHardMode) {
+                    // Modo Hard: Mostra uma orelha/interrogação em vez da letra
+                    letterDisplay.textContent = "👂"; 
+                    letterDisplay.classList.add('text-blue-500', 'animate-pulse');
+                    letterDisplay.classList.remove('text-pink-600');
+                    document.getElementById('action-text').textContent = "Ouça o:";
+                } else {
+                    // Modo Normal: Mostra a letra
+                    letterDisplay.textContent = letter;
+                    letterDisplay.classList.remove('text-blue-500', 'animate-pulse');
+                    letterDisplay.classList.add('text-pink-600');
+                    document.getElementById('action-text').textContent = "Ache o:";
+                }
+
                 letterDisplay.classList.remove('pop-in');
                 void letterDisplay.offsetWidth;
                 letterDisplay.classList.add('pop-in');
@@ -639,7 +697,6 @@
             isProcessingInput = true;
             const word = targetName.join('');
             
-            // CORREÇÃO: Usa a pronúncia correta da palavra inteira
             const pronunciation = currentWordObj.pronuncia || word;
             
             speak(`Parabéns! Você escreveu ${pronunciation}! Muito bem!`);
@@ -664,7 +721,6 @@
             }());
         }
 
-        // CORREÇÃO: Adicionado campo 'pronuncia' para forçar o som correto
         const wordList = [
             { palavra: "SOL", emoji: "☀️" },
             { palavra: "LUA", emoji: "🌙" },
@@ -700,7 +756,6 @@
             lastWordIndex = newIndex;
             const randomItem = wordList[newIndex];
             
-            // Atualiza o objeto da palavra atual
             currentWordObj = randomItem;
             targetName = randomItem.palavra.toUpperCase().split('');
             currentEmoji = randomItem.emoji;
@@ -709,7 +764,6 @@
             document.getElementById('loadingOverlay').classList.add('hidden');
             document.getElementById('loadingOverlay').classList.remove('flex');
             
-            // CORREÇÃO: Usa a pronúncia correta na introdução
             const pronunciation = randomItem.pronuncia || randomItem.palavra;
             speak(`Agora vamos achar: ${pronunciation}`);
         }
