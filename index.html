@@ -148,7 +148,7 @@
             }
         }
 
-        /* NOVO: Classe para a palavra final gigante */
+        /* Hero Word */
         .hero-word {
             text-shadow: 4px 4px 0px rgba(0,0,0,0.1);
             background: -webkit-linear-gradient(#ec4899, #8b5cf6);
@@ -198,7 +198,7 @@
         <!-- Cabeçalho Fixo -->
         <div id="header-container" class="flex-none pt-4 pb-2 px-2 flex flex-col items-center z-30 bg-white/40 backdrop-blur-md shadow-sm border-b border-white/20 relative">
             
-            <!-- Botão de Dificuldade (NOVO) -->
+            <!-- Botão de Dificuldade -->
             <button id="difficultyToggle" onclick="toggleHardMode()" class="absolute right-2 top-2 hard-mode-btn p-2 rounded-full flex items-center gap-2 z-50 text-sm font-bold text-gray-600">
                 <span id="diff-icon" class="text-xl">👀</span>
                 <span id="diff-text" class="hidden md:inline">Ver Letra</span>
@@ -234,7 +234,7 @@
             <div id="feedbackLetter" class="text-white text-9xl md:text-[14rem] font-['Fredoka_One'] drop-shadow-lg scale-0 transition-transform duration-300"></div>
         </div>
 
-        <!-- Tela de Vitória (ATUALIZADA) -->
+        <!-- Tela de Vitória -->
         <div id="winScreen" class="hidden absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-center p-4">
             <div class="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl max-w-md w-full mx-4 relative overflow-hidden border-8 border-pink-100">
                 <div class="absolute top-0 left-0 w-full h-5 bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400"></div>
@@ -268,6 +268,59 @@
     </div>
 
     <script>
+        // --- CONFIGURAÇÃO DE PALAVRAS ---
+        // Adicionei muitas palavras com emojis claros e fáceis
+        const wordList = [
+            // FAMILIA
+            { palavra: "PAI", emoji: "👨‍👧" },
+            { palavra: "MAE", emoji: "👩‍👧", pronuncia: "MÃE" },
+            { palavra: "BEBE", emoji: "👶", pronuncia: "BEBÊ" },
+            { palavra: "VOVO", emoji: "👵", pronuncia: "VOVÓ" },
+            
+            // NATUREZA
+            { palavra: "SOL", emoji: "☀️" },
+            { palavra: "LUA", emoji: "🌙" },
+            { palavra: "FLOR", emoji: "🌸" },
+            { palavra: "MAR", emoji: "🌊" }, 
+            { palavra: "ARVORE", emoji: "🌳", pronuncia: "ÁRVORE" },
+
+            // ANIMAIS
+            { palavra: "GATO", emoji: "🐱" },
+            { palavra: "CAO", emoji: "🐶", pronuncia: "CÃO" },
+            { palavra: "PEIXE", emoji: "🐠" },
+            { palavra: "URSO", emoji: "🐻" },
+            { palavra: "LEAO", emoji: "🦁", pronuncia: "LEÃO" },
+            { palavra: "PATO", emoji: "🦆" },
+            { palavra: "SAPO", emoji: "🐸" },
+            { palavra: "VACA", emoji: "🐮" },
+            { palavra: "MACACO", emoji: "🐵" },
+
+            // COMIDAS
+            { palavra: "UVA", emoji: "🍇" },
+            { palavra: "OVO", emoji: "🥚" },
+            { palavra: "BOLO", emoji: "🎂" },
+            { palavra: "BANANA", emoji: "🍌" },
+            { palavra: "MACA", emoji: "🍎", pronuncia: "MAÇÃ" },
+            { palavra: "PÃO", emoji: "🥖" },
+            { palavra: "SUCO", emoji: "🧃" },
+
+            // CORPO
+            { palavra: "MAO", emoji: "🖐️", pronuncia: "MÃO" },
+            { palavra: "PE", emoji: "🦶", pronuncia: "PÉ" },
+            { palavra: "BOCA", emoji: "👄" },
+            { palavra: "OLHO", emoji: "👁️" },
+            { palavra: "DENTE", emoji: "🦷" },
+
+            // OBJETOS
+            { palavra: "BOLA", emoji: "⚽" },
+            { palavra: "CASA", emoji: "🏡" },
+            { palavra: "DADO", emoji: "🎲" },
+            { palavra: "CARRO", emoji: "🚗" },
+            { palavra: "TREM", emoji: "🚂" },
+            { palavra: "LIVRO", emoji: "📖" },
+            { palavra: "CAMA", emoji: "🛏️" }
+        ];
+
         const defaultName = ['L', 'A', 'V', 'I', 'N', 'E'];
         let targetName = [...defaultName];
         let currentEmoji = '👧🏻'; 
@@ -287,15 +340,14 @@
         let audioCtx;
         let idleHintTimer; 
         let isProcessingInput = false; 
-        // NOVO: Controle de dificuldade
         let isHardMode = false;
+        let lastWordIndex = -1;
 
         function globalTouchEffect(e) {
             const x = e.clientX || (e.touches && e.touches[0].clientX);
             const y = e.clientY || (e.touches && e.touches[0].clientY);
             
             if (x && y && !isProcessingInput) {
-                // Efeito sonoro suave ao tocar no fundo (opcional, removido para não poluir)
                 confetti({
                     particleCount: 8,
                     spread: 30,
@@ -310,7 +362,6 @@
             resetIdleHintTimer();
         }
 
-        // NOVO: Função para alternar o modo difícil
         function toggleHardMode() {
             isHardMode = !isHardMode;
             const btn = document.getElementById('difficultyToggle');
@@ -318,20 +369,16 @@
             const text = document.getElementById('diff-text');
 
             if (isHardMode) {
-                // Modo Ouvir (Difícil)
                 btn.classList.add('active');
-                icon.textContent = '🙈'; // Macaco cobrindo olhos ou orelha
+                icon.textContent = '🙈'; 
                 text.textContent = 'Ouvir Só';
                 speak("Modo ouvir ativado. Escute com atenção!", true);
             } else {
-                // Modo Ver (Fácil)
                 btn.classList.remove('active');
                 icon.textContent = '👀';
                 text.textContent = 'Ver Letra';
                 speak("Modo visual ativado.", true);
             }
-            
-            // Atualiza a tela imediatamente
             updateHUD();
         }
 
@@ -348,11 +395,14 @@
             if (priority) synth.cancel();
             const utterThis = new SpeechSynthesisUtterance(text);
             utterThis.lang = 'pt-BR';
-            utterThis.rate = 1.0;
-            utterThis.pitch = 1.2;
+            // Ajustado para combinar com o jogo de forca
+            utterThis.rate = 1.2; 
+            utterThis.pitch = 1.1;
+            
             const voices = synth.getVoices();
             const ptVoice = voices.find(v => v.lang.includes('pt-BR')) || voices.find(v => v.lang.includes('pt'));
             if (ptVoice) utterThis.voice = ptVoice;
+            
             synth.speak(utterThis);
         }
 
@@ -508,10 +558,25 @@
         }
 
         function getLetterSound(char) {
+            // Mapeamento melhorado para sons de letras em PT-BR
             const sounds = {
-                'E': 'Ê',
+                'A': 'Á',
+                'E': 'É',
+                'I': 'Í',
                 'O': 'Ó',
-                'A': 'Á'
+                'U': 'Ú',
+                'Y': 'Ípsilon',
+                'W': 'Dábliu',
+                'K': 'Cá',
+                'H': 'Agá',
+                'J': 'Jóta',
+                'X': 'Xís',
+                'Z': 'Zê',
+                'M': 'Ême',
+                'N': 'Êne',
+                'L': 'Éle',
+                'S': 'Ésse',
+                'R': 'Érre'
             };
             return sounds[char] || char;
         }
@@ -667,19 +732,16 @@
             });
             document.getElementById('target-emoji-display').textContent = currentEmoji;
             
-            // Lógica Atualizada para o Modo Hard
             if (currentStep < targetName.length) {
                 const letter = targetName[currentStep];
                 const letterDisplay = document.getElementById('target-letter-display');
                 
                 if (isHardMode) {
-                    // Modo Hard: Mostra uma orelha/interrogação em vez da letra
                     letterDisplay.textContent = "👂"; 
                     letterDisplay.classList.add('text-blue-500', 'animate-pulse');
                     letterDisplay.classList.remove('text-pink-600');
                     document.getElementById('action-text').textContent = "Ouça o:";
                 } else {
-                    // Modo Normal: Mostra a letra
                     letterDisplay.textContent = letter;
                     letterDisplay.classList.remove('text-blue-500', 'animate-pulse');
                     letterDisplay.classList.add('text-pink-600');
@@ -721,30 +783,6 @@
             }());
         }
 
-        const wordList = [
-            { palavra: "SOL", emoji: "☀️" },
-            { palavra: "LUA", emoji: "🌙" },
-            { palavra: "PAI", emoji: "👨‍👧" },
-            { palavra: "MAE", emoji: "👩‍👧", pronuncia: "MÃE" },
-            { palavra: "UVA", emoji: "🍇" },
-            { palavra: "OVO", emoji: "🥚" },
-            { palavra: "CEU", emoji: "☁️", pronuncia: "CÉU" },
-            { palavra: "RIO", emoji: "💧" },
-            { palavra: "GOL", emoji: "⚽" },
-            { palavra: "FLOR", emoji: "🌸" },
-            { palavra: "GATO", emoji: "🐈" },
-            { palavra: "BOLA", emoji: "⚽" },
-            { palavra: "PATO", emoji: "🦆" },
-            { palavra: "SAPO", emoji: "🐸" },
-            { palavra: "CASA", emoji: "🏡" },
-            { palavra: "BEBE", emoji: "👶", pronuncia: "BEBÊ" },
-            { palavra: "DADO", emoji: "🎲" },
-            { palavra: "BOLO", emoji: "🍰" },
-            { palavra: "LEAO", emoji: "🦁", pronuncia: "LEÃO" }
-        ];
-
-        let lastWordIndex = -1;
-
         async function getNewWords() {
             document.getElementById('loadingOverlay').classList.remove('hidden');
             document.getElementById('loadingOverlay').classList.add('flex');
@@ -757,7 +795,9 @@
             const randomItem = wordList[newIndex];
             
             currentWordObj = randomItem;
-            targetName = randomItem.palavra.toUpperCase().split('');
+            // Remove espaços e acentos para criar o array de letras alvo
+            const cleanWord = randomItem.palavra.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s/g, "");
+            targetName = cleanWord.toUpperCase().split('');
             currentEmoji = randomItem.emoji;
             
             resetGame(false); 
